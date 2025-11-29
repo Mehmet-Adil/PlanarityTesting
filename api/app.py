@@ -9,8 +9,12 @@ from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import io
 
+FRONTEND_URL = "https://planaritytesting-frontend.onrender.com" 
+
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS to allow requests ONLY from your deployed frontend domain
+CORS(app, resources={r"/*": {"origins": FRONTEND_URL}})
 
 
 ## ----------------------------------------------------------------------
@@ -322,4 +326,5 @@ def favicon():
 if __name__ == '__main__':
     # Use 0.0.0.0 for the host to make it externally accessible on Render
     app.run(host='0.0.0.0', port=5000)
+
 
