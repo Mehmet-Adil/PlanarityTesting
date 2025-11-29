@@ -320,4 +320,6 @@ def favicon():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Use 0.0.0.0 for the host to make it externally accessible on Render
+    app.run(host='0.0.0.0', port=5000)
+
