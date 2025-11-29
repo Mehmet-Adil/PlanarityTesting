@@ -1,13 +1,13 @@
-# app.py (FINAL FIXED VERSION)
 import matplotlib
-
 matplotlib.use('Agg')
 
 import networkx as nx
 import matplotlib.pyplot as plt
-from flask import Flask, request, jsonify, send_file
+# FIX 1: Restore send_file for robust Flask environment stability
+from flask import Flask, request, jsonify, send_file 
 from flask_cors import CORS
 import io
+import base64 # Move base64 import outside of the function
 
 app = Flask(__name__)
 CORS(app)
@@ -17,53 +17,43 @@ CORS(app)
 ## KURATOWSKI IDENTIFICATION AND VISUALIZATION FUNCTIONS (MUST COME FIRST)
 ## ----------------------------------------------------------------------
 
-# app.py (New helper function)
-
 def is_complete_graph_custom(G):
     """
     Checks if a NetworkX graph G is a complete graph (K_n).
     A graph is complete if every node is connected to every other node.
-    This means the degree of every node must be N - 1.
     """
     if not G.number_of_nodes():
-        return True  # An empty graph is trivially complete
+        return True
 
-    # N is the required degree for every node (Total nodes - 1)
     required_degree = G.number_of_nodes() - 1
 
-    # Check if every node has the required degree
     for node, degree in G.degree():
         if degree != required_degree:
             return False
 
-    # If the loop finishes, all nodes have the maximum required edges
     return True
 
 
 def get_kuratowski_type(graph):
     """
-    Identifies if the graph is a subdivision of K5 or K3,3 based on node count and structure.
-    NOTE: nx.check_planarity usually returns a subdivision, which may have > 5 or 6 nodes.
-    This check is most reliable on the MINOR graph.
+    Identifies the Kuratowski type (K5 or K3,3) for the MINOR or SUBDIVISION.
     """
     num_nodes = graph.number_of_nodes()
-
-    # K5 Minor Check: 5 nodes, is a complete graph (or close enough)
+    
+    # Check for K5 Minor (Minimal structure)
     if num_nodes == 5 and is_complete_graph_custom(graph):
         return "K_5"
 
-    # K3,3 Minor Check: 6 nodes, is bipartite and complete bipartite
+    # Check for K3,3 Minor (Minimal structure)
     if num_nodes == 6 and nx.is_bipartite(graph):
-        # Additional check to confirm it is K3,3 (3x3 complete bipartite)
         try:
             p1, p2 = nx.bipartite.sets(graph)
             if len(p1) == 3 and len(p2) == 3:
                 return "K_3,3"
         except:
-            # Fallback if bipartite sets fail
-            pass
-
-    # If the minor is a subdivision, classify based on minimum size
+            pass # Not a standard complete bipartite set
+    
+    # If not the minimal minor, classify as a subdivision based on size
     if num_nodes >= 5 and is_complete_graph_custom(graph):
         return "K_5 Subdivision"
     if num_nodes >= 6 and nx.is_bipartite(graph):
@@ -79,10 +69,7 @@ def get_kuratowski_minor(subdivision_graph):
     """
     G_minor = subdivision_graph.copy()
 
-    # --- FIX 3: Robust Contraction Loop ---
-    # We loop until no more degree-2 nodes are found
     while True:
-        # Check all nodes for degree 2
         degree_two_nodes = [node for node, degree in dict(G_minor.degree()).items() if degree == 2]
 
         if not degree_two_nodes:
@@ -94,12 +81,9 @@ def get_kuratowski_minor(subdivision_graph):
         if len(neighbors) == 2:
             v1, v2 = neighbors[0], neighbors[1]
 
-            # Simulate edge contraction:
-            # 1. Add edge between the two neighbors (if it doesn't exist)
             if v1 != v2 and not G_minor.has_edge(v1, v2):
                 G_minor.add_edge(v1, v2)
 
-            # 2. Remove the intermediate degree-2 node
             G_minor.remove_node(u)
 
     G_minor.remove_nodes_from(list(nx.isolates(G_minor)))
@@ -110,7 +94,6 @@ def get_kuratowski_minor(subdivision_graph):
 def visualize_kuratowski_subdivision(counterexample_graph):
     plt.figure(figsize=(6, 6))
 
-    # Use the function to get the most specific type for the title
     kuratowski_type = get_kuratowski_type(counterexample_graph)
 
     if kuratowski_type.startswith("K_5"):
@@ -144,7 +127,7 @@ def visualize_kuratowski_subdivision(counterexample_graph):
 def visualize_kuratowski_minor(kuratowski_minor):
     plt.figure(figsize=(6, 6))
 
-    kuratowski_type = get_kuratowski_type(kuratowski_minor)  # Use this type for the title
+    kuratowski_type = get_kuratowski_type(kuratowski_minor)
 
     if kuratowski_type == "K_5":
         layout = nx.circular_layout(kuratowski_minor)
@@ -197,8 +180,6 @@ def visualize_planarity_test(graph_data):
         edges = [(e['source'], e['target']) for e in graph_data['edges']]
         pos = {n['id']: (n['x'], n['y']) for n in graph_data['nodes']}
     except (KeyError, TypeError) as e:
-        # Return all required values on failure
-        # FIX: Ensure all return values are provided
         return None, None, None, f"Data parsing error: Missing key or incorrect type. Details: {e}", None
 
     G = nx.Graph()
@@ -243,18 +224,13 @@ def visualize_planarity_test(graph_data):
     kuratowski_type = None
 
     if not is_planar:
-        # 1. Generate the second visualization (Kuratowski Subdivision)
-        # NOTE: The second image is using the node coordinates found by NetworkX, which might not be clean.
         img_buffer_kuratowski_subdivision, kuratowski_subdivision_type = visualize_kuratowski_subdivision(
             counterexample_graph)
         kuratowski_type = f"Subdivision of {kuratowski_subdivision_type}"
 
-        # 2. Get the Minimal Minor (remove degree-2 nodes)
         kuratowski_minor = get_kuratowski_minor(counterexample_graph)
 
-        # 3. Generate the third visualization (Kuratowski Minor)
         img_buffer_kuratowski_minor, minor_title = visualize_kuratowski_minor(kuratowski_minor)
-        # Update type based on the clean minor
         kuratowski_type = minor_title.replace("Minimal Kuratowski Minor: ", "")
 
     return img_buffer_original, img_buffer_kuratowski_subdivision, img_buffer_kuratowski_minor, title, kuratowski_type
@@ -273,14 +249,12 @@ def planarity_api():
     if not data or 'nodes' not in data or 'edges' not in data:
         return jsonify({"error": "Invalid input format. Expected JSON with 'nodes' and 'edges'."}), 400
 
-    # FIX: Corrected variable names to match the function return
     img_original, img_subdivision, img_minor, result_title, kuratowski_type = visualize_planarity_test(data)
 
     if img_original is None:
         return jsonify({"error": result_title}), 400
 
-    import base64
-
+    # base64 is already imported globally at the top
     img_original_b64 = base64.b64encode(img_original.read()).decode('utf-8')
 
     img_subdivision_b64 = None
@@ -303,5 +277,4 @@ def planarity_api():
 
 
 if __name__ == '__main__':
-
     app.run(debug=True)
