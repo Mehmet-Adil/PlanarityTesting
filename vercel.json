@@ -9,15 +9,14 @@
       }
     }
   ],
-  "staticFiles": {
-    "directory": "./" 
-  },
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
 
     { "source": "/script.js", "destination": "/script.js" },
     { "source": "/favicon.ico", "destination": "/favicon.ico" },
 
-    { "source": "/planarity", "destination": "api/index.py" }
+    { "source": "/planarity", "destination": "api/index.py" },
+    
+    { "source": "/(.*)", "destination": "/$1" }
   ]
 }
