@@ -3,16 +3,16 @@
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python",
-      "config": {
-        "installCommand": "pip install -r requirements.txt" 
-      }
+      "use": "@vercel/python"
     }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    }
+    { "src": "/planarity", "dest": "api/index.py" },
+
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/script.js", "dest": "/script.js" },
+    { "src": "/favicon.ico", "dest": "/favicon.ico" },
+
+    { "src": "/(.*)", "dest": "/$1" }
   ]
 }
