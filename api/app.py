@@ -290,5 +290,23 @@ def planarity_api():
         }), 500
 
 
+# Add a route for the root path. Flask intercepts the request.
+@app.route('/', methods=['GET'])
+def root_status():
+    # Since Vercel should be serving index.html automatically, 
+    # this route is mainly here as a fallback and health check.
+    return "Planarity Testing API is Running!", 200
+
+
+# Add a route for your favicon if Vercel fails to serve it statically.
+@app.route('/favicon.ico')
+def favicon():
+    # For simplicity, if favicon.ico is in the root, you can return a 404/200 
+    # or use send_from_directory if you correctly configure templates/static folders 
+    # (which is complicated for Vercel). For now, the vercel.json fix below is better.
+    return
+
+
 if __name__ == '__main__':
     app.run(debug=True)
+
