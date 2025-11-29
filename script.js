@@ -39,7 +39,7 @@ async function processGraph() {
         try {
             const graphData = JSON.parse(event.target.result);
 
-            const API_URL = 'https://planarity-testing-api.onrender.com/';
+            const API_URL = 'https://planaritytesting-1.onrender.com/planarity';
 
             const response = await fetch(API_URL, {
                 method: 'POST',
@@ -101,4 +101,5 @@ async function processGraph() {
 
     reader.readAsText(file);
 }
+
 
